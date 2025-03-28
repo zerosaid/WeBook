@@ -1,7 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials, db
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, Button, Input, Static, ListView, ListItem
+from textual.widgets import Header, Button, Input, Static, ListView, ListItem
 from textual.containers import Vertical, Horizontal
 from textual.events import Click
 import os
@@ -41,11 +41,13 @@ def inicializar_firebase():
 class GestionPublicacion(App):
     """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios.
     
-    Versión Estrella Fugaz - Ajuste Botón con Texto Adaptable (Restaurar Funcionalidad con Static) ✨
+    Versión Luna - Ajuste Recuadro Inferior (Corrección Espacio Vacío) 🌙
     - Interfaz superior ajustada: botón Ver Lista de Usuarios al lado izquierdo de "¿Qué está pasando?".
     - Botones Me gusta y Comentar como Static con texto, ajustados al tamaño del texto.
-    - Restaurada la funcionalidad de clics usando Static y on_click a nivel de la aplicación.
+    - Funcionalidad de clics restaurada usando Static y on_click a nivel de la aplicación.
     - Corrección: evita errores al hacer clic en el Input.
+    - Ajuste: Footer eliminado para evitar estorbo.
+    - Ajuste: Espacio vacío al final eliminado ajustando el contenedor de comentarios y el espaciado.
     - Espaciado compacto y funcionalidad completa (publicar scribs, dar Me gusta, comentar).
     - Creado con mucho cariño y esfuerzo para cumplir con los requisitos del usuario.
     """
@@ -90,7 +92,10 @@ class GestionPublicacion(App):
         height: auto;  /* Ajustar altura */
         margin: 0;  /* Mantener espaciado compacto */
     }
-    #publicaciones { margin-top: 1; }
+    #publicaciones { 
+        margin-top: 1; 
+        height: auto;  /* Ajustar altura al contenido */
+    }
     #usuario_actual { 
         color: white; 
         margin-bottom: 1;  /* Añadir espacio debajo para evitar superposición */
@@ -127,13 +132,16 @@ class GestionPublicacion(App):
         background: #55FF55; 
         color: black; 
     }
+    #comment_container { 
+        display: none;  /* Ocultar el contenedor por defecto */
+        height: auto; 
+        margin: 0; 
+    }
     #comment_input { 
-        display: none; 
         width: 70%; 
         height: auto; 
     }
     #submit_comment { 
-        display: none; 
         width: 8; 
         height: auto; 
         background: #F5F5DC !important; 
@@ -166,11 +174,12 @@ class GestionPublicacion(App):
             ListView(id="lista_usuarios", classes="hidden"),
             Horizontal(
                 Input(placeholder="Escribe un comentario...", id="comment_input"),
-                Button("Enviar", id="submit_comment")
+                Button("Enviar", id="submit_comment"),
+                id="comment_container"  # Añadir un ID al contenedor
             ),
             Button("Volver al Menú", id="btn_volver", variant="warning")
         )
-        yield Footer()
+        # No incluir Footer para eliminar el recuadro inferior
 
     def on_mount(self) -> None:
         """Cargar publicaciones al iniciar y ajustar estilos."""
@@ -283,9 +292,8 @@ class GestionPublicacion(App):
                 publicaciones.append(ListItem(Static("No hay scribs aún.")))
                 publicaciones.remove_class("hidden")
                 lista_usuarios.add_class("hidden")
-            # Ocultar el campo de comentario al recargar
-            self.query_one("#comment_input").styles.display = "none"
-            self.query_one("#submit_comment").styles.display = "none"
+            # Ocultar el contenedor de comentario al recargar
+            self.query_one("#comment_container").styles.display = "none"
         except Exception as e:
             self.notify(f"Error al cargar publicaciones: {e}", severity="error")
 
@@ -322,10 +330,9 @@ class GestionPublicacion(App):
     def mostrar_campo_comentario(self, post_id):
         """Mostrar el campo para escribir un comentario."""
         self.current_comment_post_id = post_id
+        comment_container = self.query_one("#comment_container")
+        comment_container.styles.display = "block"
         comment_input = self.query_one("#comment_input")
-        submit_button = self.query_one("#submit_comment")
-        comment_input.styles.display = "block"
-        submit_button.styles.display = "block"
         comment_input.focus()
 
     def enviar_comentario(self):
@@ -350,8 +357,7 @@ class GestionPublicacion(App):
                     ref.update({'comentarios': comentarios})
                     self.notify("Comentario agregado con éxito!", severity="information")
                     comment_input.value = ""
-                    self.query_one("#comment_input").styles.display = "none"
-                    self.query_one("#submit_comment").styles.display = "none"
+                    self.query_one("#comment_container").styles.display = "none"
                     self.current_comment_post_id = None
                     self.cargar_publicaciones()
                 else:
