@@ -45,50 +45,53 @@ class GestionPublicacion(App):
     
     CSS = """
     Static { 
-        width: 100%; 
-        padding: 1 2; 
-        margin: 1 0; 
+        padding: 0 1;   /* Reducimos el padding */
+        margin: 0;      /* Eliminamos márgenes innecesarios */
         background: transparent; 
         color: white;
     }
     ListView { 
-        height: auto; 
-        max-height: 20; 
+        height: auto;   /* Altura dinámica */
+        width: 100%;    /* Ocupa todo el ancho disponible */
         border: solid white; 
-        padding: 1; 
+        padding: 0;     /* Reducimos el padding */
         background: transparent; 
     }
     ListItem { 
-        height: auto; 
-        padding: 1 2; 
-        margin: 1 0; 
+        height: auto;   /* Altura dinámica */
+        width: 100%;    /* Ocupa todo el ancho disponible */
+        padding: 0 1;   /* Reducimos el padding */
+        margin: 0;      /* Eliminamos márgenes */
         background: transparent; 
     }
     Input { 
-        margin: 1 2; 
+        margin: 0 1;    /* Reducimos márgenes */
         width: 50%; 
         height: auto; 
     }
     Button { 
-        margin: 1 2; 
+        margin: 0 1;    /* Reducimos márgenes */
         height: auto; 
     }
     Horizontal { 
         align: left middle; 
         height: auto; 
-        margin: 0 2; 
+        width: 100%;    /* Ocupa todo el ancho disponible */
+        margin: 0 1;    /* Reducimos márgenes */
     }
     Vertical { 
         height: auto; 
-        margin: 1 0; 
+        width: 100%;    /* Ocupa todo el ancho disponible */
+        margin: 0;      /* Eliminamos márgenes */
     }
     #publicaciones { 
-        margin-top: 1; 
+        margin-top: 0;  /* Reducimos el margen superior */
         height: auto; 
+        width: 100%;    /* Ocupa todo el ancho disponible */
     }
     #usuario_actual { 
         color: white; 
-        margin: 1 2; 
+        margin: 0 1;    /* Reducimos márgenes */
     }
     #btn_publicar { 
         background: #F5F5DC !important; 
@@ -105,8 +108,8 @@ class GestionPublicacion(App):
         color: black; 
         width: auto; 
         height: 1; 
-        padding: 0 1;
-        margin: 0 1;
+        padding: 0 1; 
+        margin: 0 1; 
     }
     .like-button:hover { 
         background: #FF5555; 
@@ -117,8 +120,8 @@ class GestionPublicacion(App):
         color: black; 
         width: auto; 
         height: 1; 
-        padding: 0 1;
-        margin: 0 1;
+        padding: 0 1; 
+        margin: 0 1; 
     }
     .comment-button:hover { 
         background: #55FF55; 
@@ -127,7 +130,8 @@ class GestionPublicacion(App):
     #comment_container { 
         display: none; 
         height: auto; 
-        margin: 1 2; 
+        width: 100%;    /* Ocupa todo el ancho disponible */
+        margin: 0 1;    /* Reducimos márgenes */
     }
     #comment_input { 
         width: 70%; 
@@ -140,27 +144,27 @@ class GestionPublicacion(App):
         color: black !important; 
     }
     #btn_volver { 
-        margin: 1 2; 
+        margin: 0 1;    /* Reducimos márgenes */
     }
     .comment-text {
         color: $text-muted;
-        padding-left: 4;
+        width: 60%;     /* Limita el ancho del texto para dejar espacio a los botones */
     }
     .reply-text-1 {
         color: $text-muted;
-        padding-left: 8;
+        width: 60%;
     }
     .reply-text-2 {
         color: $text-muted;
-        padding-left: 12;
+        width: 60%;
     }
     .reply-text-3 {
         color: $text-muted;
-        padding-left: 16;
+        width: 60%;
     }
     .reply-text-4 {
         color: $text-muted;
-        padding-left: 20;
+        width: 60%;
     }
     """
 
@@ -170,7 +174,7 @@ class GestionPublicacion(App):
         self.nombre = nombre
         self.post_ids = {}
         self.current_comment_post_id = None
-        self.current_comment_path = None  # Almacena el camino completo para respuestas anidadas (ej: "0_1_2")
+        self.current_comment_path = None
         inicializar_firebase()
 
     def compose(self) -> ComposeResult:
@@ -320,12 +324,22 @@ class GestionPublicacion(App):
         except Exception as e:
             self.notify(f"Error al cargar publicaciones: {e}", severity="error")
 
-    def _render_comment(self, post_id, comment_path, comentario, usuario, level=1):
-        """Renderiza un comentario o respuesta recursivamente."""
+    def _render_comment(self, post_id, comment_path, comentario, usuario, level=1, is_last=True, parent_prefix=""):
+        """Renderiza un comentario o respuesta recursivamente con ramas visuales."""
         comment_id = f"{post_id}_{comment_path}"
         comment_text = f"{comentario['autor']} (@{comentario.get('usuario', usuario)}): {comentario['contenido']}"
         comment_likes = comentario.get('likes', 0)
         
+        # Construir el prefijo con ramas visuales
+        prefix = "└ " if level == 1 else f"{parent_prefix}{'└ ' if is_last else '├ '}"
+        if level > 1:
+            parent_prefix = f"{parent_prefix}{'  ' if is_last else '│ '}"
+        comment_text = f"{prefix}{comment_text}"
+        
+        # Determinar la clase CSS según el nivel de anidamiento
+        css_class = "comment-text" if level == 1 else f"reply-text-{min(level-1, 4)}"
+        
+        # Crear los botones
         comment_like = Static(f"Me gusta ({comment_likes})", 
                             id=f"{'comment_like' if level == 1 else 'reply_like'}_{comment_id}", 
                             classes="like-button")
@@ -333,8 +347,12 @@ class GestionPublicacion(App):
                             id=f"comment_reply_{comment_id}", 
                             classes="comment-button")
         
-        # Determinar la clase CSS según el nivel de anidamiento
-        css_class = "comment-text" if level == 1 else f"reply-text-{min(level-1, 4)}"
+        # Mostrar el texto y los botones en una sola línea
+        comment_line = Horizontal(
+            Static(comment_text, classes=css_class),
+            comment_like,
+            comment_reply
+        )
         
         # Cargar respuestas recursivamente
         replies_content = []
@@ -342,11 +360,11 @@ class GestionPublicacion(App):
         if respuestas:
             for j, respuesta in enumerate(respuestas):
                 reply_path = f"{comment_path}_{j}"
-                replies_content.append(self._render_comment(post_id, reply_path, respuesta, usuario, level + 1))
+                is_last_reply = (j == len(respuestas) - 1)
+                replies_content.append(self._render_comment(post_id, reply_path, respuesta, usuario, level + 1, is_last_reply, parent_prefix))
 
         return Vertical(
-            Static(comment_text, classes=css_class),
-            Horizontal(comment_like, comment_reply),
+            comment_line,
             *replies_content
         )
 
@@ -420,7 +438,7 @@ class GestionPublicacion(App):
                 for i, idx in enumerate(indices):
                     idx = int(idx)
                     if idx < len(current_level):
-                        if i == len(indices) - 1:  # Último índice, este es el comentario/respuesta objetivo
+                        if i == len(indices) - 1:
                             target_comment = current_level[idx]
                         else:
                             current_level = current_level[idx].get('respuestas', [])
@@ -440,7 +458,6 @@ class GestionPublicacion(App):
                         target_comment['likes'] = current_likes + 1
                     target_comment['liked_by'] = liked_by
                     
-                    # Actualizar la estructura completa
                     current_level = comentarios
                     for i, idx in enumerate(indices[:-1]):
                         idx = int(idx)
@@ -505,7 +522,7 @@ class GestionPublicacion(App):
                     'respuestas': []
                 }
 
-                if self.current_comment_path is not None:  # Es una respuesta a un comentario o respuesta
+                if self.current_comment_path is not None:
                     indices = self.current_comment_path.split("_")
                     current_level = comentarios
                     for i, idx in enumerate(indices[:-1]):
@@ -515,7 +532,6 @@ class GestionPublicacion(App):
                         else:
                             self.notify("No se encontró el comentario padre para responder.", severity="error")
                             return
-                    # Agregar la respuesta al último nivel
                     idx = int(indices[-1])
                     if idx < len(current_level):
                         if 'respuestas' not in current_level[idx]:
@@ -525,7 +541,7 @@ class GestionPublicacion(App):
                     else:
                         self.notify("Comentario no encontrado para responder.", severity="error")
                         return
-                else:  # Es un comentario directo a la publicación
+                else:
                     comentarios.append(new_comment)
                     print(f"[DEBUG] Comentario directo agregado a la publicación {self.current_comment_post_id}")
 
