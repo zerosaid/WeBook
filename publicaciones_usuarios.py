@@ -41,9 +41,11 @@ def inicializar_firebase():
 class GestionPublicacion(App):
     """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios.
     
-    Versión Estrella Fugaz - Ajuste Botón con Texto Adaptable ✨
+    Versión Estrella Fugaz - Ajuste Botón con Texto Adaptable (Restaurar Funcionalidad con Static) ✨
     - Interfaz superior ajustada: botón Ver Lista de Usuarios al lado izquierdo de "¿Qué está pasando?".
     - Botones Me gusta y Comentar como Static con texto, ajustados al tamaño del texto.
+    - Restaurada la funcionalidad de clics usando Static y on_click a nivel de la aplicación.
+    - Corrección: evita errores al hacer clic en el Input.
     - Espaciado compacto y funcionalidad completa (publicar scribs, dar Me gusta, comentar).
     - Creado con mucho cariño y esfuerzo para cumplir con los requisitos del usuario.
     """
@@ -187,12 +189,15 @@ class GestionPublicacion(App):
 
     def on_click(self, event: Click) -> None:
         """Manejo de clics en los Static que simulan botones."""
-        if event.sender.id and event.sender.id.startswith("like_"):
-            post_id = event.sender.id.replace("like_", "")
-            self.dar_me_gusta(post_id)
-        elif event.sender.id and event.sender.id.startswith("comment_"):
-            post_id = event.sender.id.replace("comment_", "")
-            self.mostrar_campo_comentario(post_id)
+        # Obtener el widget que disparó el evento
+        widget = event.control if hasattr(event, 'control') else None
+        if widget and widget.id:
+            if widget.id.startswith("like_"):
+                post_id = widget.id.replace("like_", "")
+                self.dar_me_gusta(post_id)
+            elif widget.id.startswith("comment_"):
+                post_id = widget.id.replace("comment_", "")
+                self.mostrar_campo_comentario(post_id)
 
     def crear_publicacion(self):
         """Crear una publicación en Firebase con formato WeBook."""
