@@ -39,7 +39,7 @@ def inicializar_firebase():
 
 # Módulo para la interfaz de gestión y publicación
 class GestionPublicacion(App):
-    """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios."""
+    """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios anidados."""
     
     TITLE = "WeBook"
     
@@ -146,9 +146,21 @@ class GestionPublicacion(App):
         color: $text-muted;
         padding-left: 4;
     }
-    .reply-text {
+    .reply-text-1 {
         color: $text-muted;
-        padding-left: 8;  /* Más indentación para respuestas anidadas */
+        padding-left: 8;
+    }
+    .reply-text-2 {
+        color: $text-muted;
+        padding-left: 12;
+    }
+    .reply-text-3 {
+        color: $text-muted;
+        padding-left: 16;
+    }
+    .reply-text-4 {
+        color: $text-muted;
+        padding-left: 20;
     }
     """
 
@@ -158,7 +170,7 @@ class GestionPublicacion(App):
         self.nombre = nombre
         self.post_ids = {}
         self.current_comment_post_id = None
-        self.current_comment_index = None
+        self.current_comment_path = None  # Almacena el camino completo para respuestas anidadas (ej: "0_1_2")
         inicializar_firebase()
 
     def compose(self) -> ComposeResult:
@@ -197,7 +209,7 @@ class GestionPublicacion(App):
         widget = event.control if hasattr(event, 'control') else None
         if widget and widget.id:
             print(f"[DEBUG] Click en widget con ID: {widget.id}")
-            if widget.id.startswith("like_") and not widget.id.startswith("comment_like_"):
+            if widget.id.startswith("like_") and not widget.id.startswith("comment_like_") and not widget.id.startswith("reply_like_"):
                 post_id = widget.id.replace("like_", "")
                 self.dar_me_gusta(post_id)
             elif widget.id.startswith("comment_") and not widget.id.startswith("comment_like_") and not widget.id.startswith("comment_reply_"):
@@ -209,12 +221,15 @@ class GestionPublicacion(App):
             elif widget.id.startswith("comment_reply_"):
                 comment_id = widget.id.replace("comment_reply_", "")
                 try:
-                    post_id, comment_idx = comment_id.split("_")
-                    print(f"[DEBUG] Intentando responder al comentario {comment_idx} de la publicación {post_id}")
-                    self.mostrar_campo_comentario(post_id, comment_idx, is_reply=True)
+                    post_id, comment_path = comment_id.split("_", 1)
+                    print(f"[DEBUG] Intentando responder al comentario con path {comment_path} de la publicación {post_id}")
+                    self.mostrar_campo_comentario(post_id, comment_path, is_reply=True)
                 except ValueError as e:
                     print(f"[DEBUG] Error al parsear comment_id: {comment_id}, error: {e}")
                     self.notify("Error al intentar responder al comentario.", severity="error")
+            elif widget.id.startswith("reply_like_"):
+                reply_id = widget.id.replace("reply_like_", "")
+                self.dar_me_gusta_respuesta(reply_id)
 
     def crear_publicacion(self):
         mensaje_input = self.query_one("#mensaje_input", Input)
@@ -287,38 +302,8 @@ class GestionPublicacion(App):
                     comments_content = []
                     if comentarios:
                         for i, comentario in enumerate(comentarios):
-                            comment_id = f"{post_id}_{i}"
-                            comment_text = f"{comentario['autor']} (@{comentario.get('usuario', usuario)}): {comentario['contenido']}"
-                            comment_likes = comentario.get('likes', 0)
-                            
-                            comment_like = Static(f"Me gusta ({comment_likes})", 
-                                               id=f"comment_like_{comment_id}", 
-                                               classes="like-button")
-                            comment_reply = Static("Responder", 
-                                                id=f"comment_reply_{comment_id}", 
-                                                classes="comment-button")
-                            
-                            # Cargar respuestas anidadas
-                            replies_content = []
-                            respuestas = comentario.get('respuestas', [])
-                            if respuestas:
-                                for j, respuesta in enumerate(respuestas):
-                                    reply_text = f"{respuesta['autor']} (@{respuesta.get('usuario', usuario)}): {respuesta['contenido']}"
-                                    reply_likes = respuesta.get('likes', 0)
-                                    replies_content.append(
-                                        Vertical(
-                                            Static(reply_text, classes="reply-text"),
-                                            # Podrías agregar botones para las respuestas si lo deseas
-                                        )
-                                    )
-
-                            comments_content.append(
-                                Vertical(
-                                    Static(comment_text, classes="comment-text"),
-                                    Horizontal(comment_like, comment_reply),
-                                    *replies_content
-                                )
-                            )
+                            comment_path = str(i)
+                            comments_content.append(self._render_comment(post_id, comment_path, comentario, usuario))
 
                     publicaciones.append(ListItem(Vertical(
                         scrib,
@@ -334,6 +319,36 @@ class GestionPublicacion(App):
             self.query_one("#comment_container").styles.display = "none"
         except Exception as e:
             self.notify(f"Error al cargar publicaciones: {e}", severity="error")
+
+    def _render_comment(self, post_id, comment_path, comentario, usuario, level=1):
+        """Renderiza un comentario o respuesta recursivamente."""
+        comment_id = f"{post_id}_{comment_path}"
+        comment_text = f"{comentario['autor']} (@{comentario.get('usuario', usuario)}): {comentario['contenido']}"
+        comment_likes = comentario.get('likes', 0)
+        
+        comment_like = Static(f"Me gusta ({comment_likes})", 
+                            id=f"{'comment_like' if level == 1 else 'reply_like'}_{comment_id}", 
+                            classes="like-button")
+        comment_reply = Static("Responder", 
+                            id=f"comment_reply_{comment_id}", 
+                            classes="comment-button")
+        
+        # Determinar la clase CSS según el nivel de anidamiento
+        css_class = "comment-text" if level == 1 else f"reply-text-{min(level-1, 4)}"
+        
+        # Cargar respuestas recursivamente
+        replies_content = []
+        respuestas = comentario.get('respuestas', [])
+        if respuestas:
+            for j, respuesta in enumerate(respuestas):
+                reply_path = f"{comment_path}_{j}"
+                replies_content.append(self._render_comment(post_id, reply_path, respuesta, usuario, level + 1))
+
+        return Vertical(
+            Static(comment_text, classes=css_class),
+            Horizontal(comment_like, comment_reply),
+            *replies_content
+        )
 
     def dar_me_gusta(self, post_id):
         try:
@@ -364,7 +379,7 @@ class GestionPublicacion(App):
 
     def dar_me_gusta_comentario(self, comment_id):
         try:
-            post_id, comment_idx = comment_id.split("_")
+            post_id, comment_idx = comment_id.split("_", 1)
             ref = db.reference(f'publicaciones/{post_id}')
             post = ref.get()
             if post and 'comentarios' in post:
@@ -392,8 +407,58 @@ class GestionPublicacion(App):
         except Exception as e:
             self.notify(f"Error al dar like al comentario: {e}", severity="error")
 
-    def mostrar_campo_comentario(self, post_id, comment_idx=None, is_reply=False):
-        print(f"[DEBUG] Mostrando campo comentario para post_id: {post_id}, comment_idx: {comment_idx}, is_reply: {is_reply}")
+    def dar_me_gusta_respuesta(self, reply_id):
+        try:
+            post_id, reply_path = reply_id.split("_", 1)
+            ref = db.reference(f'publicaciones/{post_id}')
+            post = ref.get()
+            if post and 'comentarios' in post:
+                comentarios = post['comentarios']
+                indices = reply_path.split("_")
+                current_level = comentarios
+                target_comment = None
+                for i, idx in enumerate(indices):
+                    idx = int(idx)
+                    if idx < len(current_level):
+                        if i == len(indices) - 1:  # Último índice, este es el comentario/respuesta objetivo
+                            target_comment = current_level[idx]
+                        else:
+                            current_level = current_level[idx].get('respuestas', [])
+                    else:
+                        self.notify("Respuesta no encontrada.", severity="error")
+                        return
+
+                if target_comment:
+                    liked_by = target_comment.get('liked_by', [])
+                    current_likes = target_comment.get('likes', 0)
+                    
+                    if self.usuario in liked_by:
+                        liked_by.remove(self.usuario)
+                        target_comment['likes'] = current_likes - 1
+                    else:
+                        liked_by.append(self.usuario)
+                        target_comment['likes'] = current_likes + 1
+                    target_comment['liked_by'] = liked_by
+                    
+                    # Actualizar la estructura completa
+                    current_level = comentarios
+                    for i, idx in enumerate(indices[:-1]):
+                        idx = int(idx)
+                        current_level = current_level[idx]['respuestas']
+                    current_level[int(indices[-1])] = target_comment
+                    
+                    ref.update({'comentarios': comentarios})
+                    self.notify("¡Like actualizado en respuesta!", severity="information")
+                    self.cargar_publicaciones()
+                else:
+                    self.notify("Respuesta no encontrada.", severity="error")
+            else:
+                self.notify("Publicación no encontrada.", severity="error")
+        except Exception as e:
+            self.notify(f"Error al dar like a la respuesta: {e}", severity="error")
+
+    def mostrar_campo_comentario(self, post_id, comment_path=None, is_reply=False):
+        print(f"[DEBUG] Mostrando campo comentario para post_id: {post_id}, comment_path: {comment_path}, is_reply: {is_reply}")
         ref = db.reference(f'publicaciones/{post_id}')
         post = ref.get()
         if not post:
@@ -402,7 +467,7 @@ class GestionPublicacion(App):
             return
 
         self.current_comment_post_id = post_id
-        self.current_comment_index = comment_idx if is_reply else None
+        self.current_comment_path = comment_path if is_reply else None
         comment_container = self.query_one("#comment_container")
         comment_container.styles.display = "block"
         comment_input = self.query_one("#comment_input")
@@ -410,7 +475,7 @@ class GestionPublicacion(App):
         comment_input.focus()
 
     def enviar_comentario(self):
-        print(f"[DEBUG] Enviando comentario para post_id: {self.current_comment_post_id}, comment_idx: {self.current_comment_index}")
+        print(f"[DEBUG] Enviando comentario para post_id: {self.current_comment_post_id}, comment_path: {self.current_comment_path}")
         if not self.current_comment_post_id:
             print("[DEBUG] No hay post_id definido para enviar el comentario.")
             self.notify("No se ha seleccionado una publicación para comentar.", severity="error")
@@ -422,7 +487,7 @@ class GestionPublicacion(App):
             print(f"[DEBUG] No se encontró la publicación con post_id: {self.current_comment_post_id} al enviar comentario.")
             self.notify("No se encontró la publicación.", severity="error")
             self.current_comment_post_id = None
-            self.current_comment_index = None
+            self.current_comment_path = None
             return
 
         comment_input = self.query_one("#comment_input", Input)
@@ -437,17 +502,26 @@ class GestionPublicacion(App):
                     'hora': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'likes': 0,
                     'liked_by': [],
-                    'respuestas': []  # Inicializamos la lista de respuestas
+                    'respuestas': []
                 }
 
-                if self.current_comment_index is not None:  # Es una respuesta a un comentario
-                    comment_idx = int(self.current_comment_index)
-                    if comment_idx < len(comentarios):
-                        # Agregar la respuesta al comentario específico
-                        if 'respuestas' not in comentarios[comment_idx]:
-                            comentarios[comment_idx]['respuestas'] = []
-                        comentarios[comment_idx]['respuestas'].append(new_comment)
-                        print(f"[DEBUG] Respuesta agregada al comentario {comment_idx} de la publicación {self.current_comment_post_id}")
+                if self.current_comment_path is not None:  # Es una respuesta a un comentario o respuesta
+                    indices = self.current_comment_path.split("_")
+                    current_level = comentarios
+                    for i, idx in enumerate(indices[:-1]):
+                        idx = int(idx)
+                        if idx < len(current_level):
+                            current_level = current_level[idx].get('respuestas', [])
+                        else:
+                            self.notify("No se encontró el comentario padre para responder.", severity="error")
+                            return
+                    # Agregar la respuesta al último nivel
+                    idx = int(indices[-1])
+                    if idx < len(current_level):
+                        if 'respuestas' not in current_level[idx]:
+                            current_level[idx]['respuestas'] = []
+                        current_level[idx]['respuestas'].append(new_comment)
+                        print(f"[DEBUG] Respuesta agregada al path {self.current_comment_path} de la publicación {self.current_comment_post_id}")
                     else:
                         self.notify("Comentario no encontrado para responder.", severity="error")
                         return
@@ -460,7 +534,7 @@ class GestionPublicacion(App):
                 comment_input.value = ""
                 self.query_one("#comment_container").styles.display = "none"
                 self.current_comment_post_id = None
-                self.current_comment_index = None
+                self.current_comment_path = None
                 self.cargar_publicaciones()
             except Exception as e:
                 print(f"[DEBUG] Error al enviar comentario: {e}")
