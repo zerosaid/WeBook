@@ -130,7 +130,6 @@ Criterios de Aceptación:
 
 
 
-
 4. ### Roadmap y Priorización
 
   - Sprint 1 (Día 1): El sprint del día uno se realizó la implementación y funciones de registro de sesión y múltiples usuarios además de garantizar y asegurar la integridad de los datos en un database en la aplicación de Google Firebase además de que se desglosaron las demás tareas del backlog como el desarrollo de las publicaciones y comentarios.
