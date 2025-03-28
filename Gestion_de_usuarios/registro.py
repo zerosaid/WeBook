@@ -1,116 +1,101 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Input, Label, Static
-from textual.screen import Screen
-from dataclasses import dataclass
-from typing import Dict, Optional
+from textual.containers import Vertical, Horizontal, Container
+from textual.widgets import Input, Button, Label, Static
+import re
+from conexion import *
 
-@dataclass
-class User:
-    username: str
-    email: str
-    password: str
 
-class Database:
-    def __init__(self):
-        self.users: Dict[str, User] = {}
-        self.current_user: Optional[User] = None
+# Credenciales predefinidas
 
-    def register(self, username: str, email: str, password: str) -> bool:
-        if email in [u.email for u in self.users.values()]:
-            return False
-        self.users[email] = User(username, email, password)
-        return True
 
-    def login(self, email: str, password: str) -> bool:
-        user = self.users.get(email)
-        if user and user.password == password:
-            self.current_user = user
-            return True
-        return False
-
-    def get_users(self) -> Dict[str, User]:
-        return self.users.copy()
-
-class LoginScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("INICIAR SESIÓN")
-        yield Input(placeholder="Email", id="email")
-        yield Input(placeholder="Contraseña", id="password", password=True)
-        yield Button("Ingresar", id="login")
-        yield Button("Registrarse", id="register")
-        yield Static("", id="message")
-
-    async def on_button_pressed(self, event: Button.Pressed):
-        email = self.query_one("#email", Input).value
-        password = self.query_one("#password", Input).value
-
-        if event.button.id == "login":
-            if self.app.db.login(email, password):
-                self.app.push_screen("menu")
-            else:
-                self.query_one("#message", Static).update("Credenciales incorrectas")
-        elif event.button.id == "register":
-            self.app.push_screen("register")
-
-class RegisterScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label("REGISTRO DE USUARIO")
-        yield Input(placeholder="Nombre de usuario", id="username")
-        yield Input(placeholder="Email", id="email")
-        yield Input(placeholder="Contraseña", id="password", password=True)
-        yield Button("Registrar", id="register")
-        yield Button("Volver", id="back")
-        yield Static("", id="message")
-
-    async def on_button_pressed(self, event: Button.Pressed):
-        username = self.query_one("#username", Input).value
-        email = self.query_one("#email", Input).value
-        password = self.query_one("#password", Input).value
-
-        if event.button.id == "register":
-            if self.app.db.register(username, email, password):
-                self.query_one("#message", Static).update("Registro exitoso!")
-            else:
-                self.query_one("#message", Static).update("Email ya registrado")
-        elif event.button.id == "back":
-            self.app.push_screen("login")
-
-class MenuScreen(Screen):
-    def compose(self) -> ComposeResult:
-        yield Label(f"BIENVENIDO {self.app.db.current_user.username}")
-        yield Static("", id="users_list")
-        yield Button("Actualizar lista", id="refresh")
-        yield Button("Cerrar sesión", id="logout")
-
-    def on_mount(self):
-        self.update_users()
-
-    def update_users(self):
-        users = self.app.db.get_users()
-        user_list = "\n".join([f"- {u.username} ({u.email})" for u in users.values()])
-        self.query_one("#users_list", Static).update(user_list)
-
-    async def on_button_pressed(self, event: Button.Pressed):
-        if event.button.id == "refresh":
-            self.update_users()
-        elif event.button.id == "logout":
-            self.app.db.current_user = None
-            self.app.push_screen("login")
-
-class RedSocialApp(App):
-    SCREENS = {
-        "login": LoginScreen,
-        "register": RegisterScreen,
-        "menu": MenuScreen
+class LoginApp(App):
+    CSS = """
+    #main_container {
+        layout: grid;
+        grid-columns: 1fr 1fr;
+        height: 100%;
+        align: center middle;
     }
+    
+    #login_container, #register_container {
+        width: 80%;
+        align: center middle;
+    }
+    
+    .btn-crear-cuenta {
+        width: 70%;
+        background: rgba(5, 5, 5, 0.1);
+    }
+    .ocultar{
+        display:none;
+    }
+    """
+    
+    def compose(self) -> ComposeResult:
+        self.username_input = Input(placeholder="Usuario")
+        self.password_input = Input(placeholder="Contraseña", password=True)
+        self.login_message = Label("", id="login_message")
+        
 
-    def __init__(self):
-        super().__init__()
-        self.db = Database()
+        self.email_input = Input(placeholder="Correo")
+        self.new_username_input = Input(placeholder="Nombre completo")
+        self.new_password_input = Input(placeholder="Nueva Contraseña", password=True)
+        self.register_message = Label("", id="register_message")
+        
+        yield Horizontal(
+            Container(
+                Vertical(
+                    Label("Iniciar Sesión"),
+                    self.username_input,
+                    self.password_input,
+                    Button("Login", id="login_btn"),
+                    self.login_message,
+                    id="login_container"
+                )
+            ),
+            
+            Container(
+                Vertical(
+                    Label("Registro"),
+                    self.email_input,
+                    self.new_username_input,
+                    self.new_password_input,
+                    Button("Registrar", id="new_register_btn"),
+                    self.register_message,
+                    id="register_container"
+                )
+            )
+        )
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "login_btn":
+            usuario = self.username_input.value
+            password = self.password_input.value
+            
+            if vericacion_users(usuario, password):
+                self.login_message.update("✔️ Login exitoso")
+                #llamar a la rama de montero 
+            else:
+                self.login_message.update("❌ Usuario o contraseña incorrectos")
+            
+        elif event.button.id == "new_register_btn":
+            email = self.email_input.value
+            new_usuario = self.new_username_input.value
+            new_password = self.new_password_input.value
+            self.register_message.update("✔️ Registrando.....")
+            if email and new_usuario and new_password and self.validar_correo(email):
+                if save_usuarios(email, new_usuario, new_password):
+                    self.register_message.update(f"✔️ Registro exitoso su usario es: {email.split("@")[0].lower()}")
+                else:
 
-    def on_mount(self):
-        self.push_screen("login")
+                    self.register_message.update("❌ Correo ya registrado")
+
+            else:
+                self.register_message.update("❌ Todos los campos son obligatorios o correo inavalido")
+    def validar_correo(self, email):
+        """Verifica si el correo tiene un formato válido"""
+        patron = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        return bool(re.match(patron, email))            
 
 if __name__ == "__main__":
-    app = RedSocialApp()
-    app.run()
+    LoginApp().run()
