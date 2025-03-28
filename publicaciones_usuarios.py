@@ -39,13 +39,20 @@ def inicializar_firebase():
 
 # Módulo para la interfaz de gestión y publicación
 class GestionPublicacion(App):
-    """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios."""
+    """Interfaz de Textual para WeBook con publicaciones, Me gusta y comentarios.
+    
+    Versión Estrella Fugaz - Ajuste Botón con Texto Adaptable ✨
+    - Interfaz superior ajustada: botón Ver Lista de Usuarios al lado izquierdo de "¿Qué está pasando?".
+    - Botones Me gusta y Comentar como Static con texto, ajustados al tamaño del texto.
+    - Espaciado compacto y funcionalidad completa (publicar scribs, dar Me gusta, comentar).
+    - Creado con mucho cariño y esfuerzo para cumplir con los requisitos del usuario.
+    """
     
     TITLE = "WeBook"
     
     CSS = """
     Static { 
-        width: 100%;  /* Restaurar para asegurar visibilidad */
+        width: 100%;  /* Asegurar visibilidad */
         padding: 0 1;  /* Reducir padding */
         margin: 0;  /* Mantener espaciado compacto */
         background: transparent;  /* Fondo transparente */
@@ -64,12 +71,12 @@ class GestionPublicacion(App):
         background: transparent;  /* Fondo transparente */
     }
     Input { 
-        margin: 1;  /* Restaurar margen para visibilidad */
+        margin: 1;  /* Asegurar visibilidad */
         width: 50%; 
         height: auto;  /* Ajustar altura */
     }
     Button { 
-        margin: 1;  /* Restaurar margen para visibilidad */
+        margin: 1;  /* Asegurar visibilidad */
         height: auto;  /* Ajustar altura */
     }
     Horizontal { 
@@ -91,10 +98,15 @@ class GestionPublicacion(App):
         color: black !important; 
         width: 8; 
     }
+    #btn_lista_usuarios { 
+        background: #F5F5DC !important; 
+        color: black !important; 
+        width: 15;  /* Ajustar ancho para el texto */
+    }
     .like-button { 
         background: #F5F5DC;  /* Fondo igual que Scrib */
         color: black;  /* Color igual que Scrib */
-        width: 8; 
+        width: auto;  /* Ajustar al tamaño del texto */
         height: 1; 
         padding: 0 1;
     }
@@ -105,7 +117,7 @@ class GestionPublicacion(App):
     .comment-button { 
         background: #F5F5DC;  /* Fondo igual que Scrib */
         color: black;  /* Color igual que Scrib */
-        width: 8; 
+        width: auto;  /* Ajustar al tamaño del texto */
         height: 1; 
         padding: 0 1;
     }
@@ -124,9 +136,6 @@ class GestionPublicacion(App):
         height: auto; 
         background: #F5F5DC !important; 
         color: black !important; 
-    }
-    #btn_lista_usuarios { 
-        margin-top: 1;  /* Añadir espacio arriba */
     }
     #btn_volver { 
         margin-top: 1;  /* Añadir espacio arriba */
@@ -147,10 +156,10 @@ class GestionPublicacion(App):
         yield Vertical(
             Static(f"@{self.usuario} ({self.nombre})", id="usuario_actual"),
             Horizontal(
+                Button("Ver Lista de Usuarios", id="btn_lista_usuarios"),
                 Input(placeholder="¿Qué está pasando?", id="mensaje_input"),
                 Button("Scrib", id="btn_publicar")
             ),
-            Button("Ver Lista de Usuarios", id="btn_lista_usuarios"),
             ListView(id="publicaciones"),  # Lista de publicaciones
             ListView(id="lista_usuarios", classes="hidden"),
             Horizontal(
