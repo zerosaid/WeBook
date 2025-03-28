@@ -146,6 +146,10 @@ class GestionPublicacion(App):
         color: $text-muted;
         padding-left: 4;
     }
+    .reply-text {
+        color: $text-muted;
+        padding-left: 8;  /* Más indentación para respuestas anidadas */
+    }
     """
 
     def __init__(self, usuario, nombre):
@@ -294,10 +298,25 @@ class GestionPublicacion(App):
                                                 id=f"comment_reply_{comment_id}", 
                                                 classes="comment-button")
                             
+                            # Cargar respuestas anidadas
+                            replies_content = []
+                            respuestas = comentario.get('respuestas', [])
+                            if respuestas:
+                                for j, respuesta in enumerate(respuestas):
+                                    reply_text = f"{respuesta['autor']} (@{respuesta.get('usuario', usuario)}): {respuesta['contenido']}"
+                                    reply_likes = respuesta.get('likes', 0)
+                                    replies_content.append(
+                                        Vertical(
+                                            Static(reply_text, classes="reply-text"),
+                                            # Podrías agregar botones para las respuestas si lo deseas
+                                        )
+                                    )
+
                             comments_content.append(
                                 Vertical(
                                     Static(comment_text, classes="comment-text"),
-                                    Horizontal(comment_like, comment_reply)
+                                    Horizontal(comment_like, comment_reply),
+                                    *replies_content
                                 )
                             )
 
@@ -375,7 +394,6 @@ class GestionPublicacion(App):
 
     def mostrar_campo_comentario(self, post_id, comment_idx=None, is_reply=False):
         print(f"[DEBUG] Mostrando campo comentario para post_id: {post_id}, comment_idx: {comment_idx}, is_reply: {is_reply}")
-        # Validar que el post_id exista en Firebase antes de proceder
         ref = db.reference(f'publicaciones/{post_id}')
         post = ref.get()
         if not post:
@@ -398,7 +416,6 @@ class GestionPublicacion(App):
             self.notify("No se ha seleccionado una publicación para comentar.", severity="error")
             return
 
-        # Validar nuevamente que la publicación exista
         ref = db.reference(f'publicaciones/{self.current_comment_post_id}')
         post = ref.get()
         if not post:
@@ -419,9 +436,25 @@ class GestionPublicacion(App):
                     'contenido': comentario,
                     'hora': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     'likes': 0,
-                    'liked_by': []
+                    'liked_by': [],
+                    'respuestas': []  # Inicializamos la lista de respuestas
                 }
-                comentarios.append(new_comment)
+
+                if self.current_comment_index is not None:  # Es una respuesta a un comentario
+                    comment_idx = int(self.current_comment_index)
+                    if comment_idx < len(comentarios):
+                        # Agregar la respuesta al comentario específico
+                        if 'respuestas' not in comentarios[comment_idx]:
+                            comentarios[comment_idx]['respuestas'] = []
+                        comentarios[comment_idx]['respuestas'].append(new_comment)
+                        print(f"[DEBUG] Respuesta agregada al comentario {comment_idx} de la publicación {self.current_comment_post_id}")
+                    else:
+                        self.notify("Comentario no encontrado para responder.", severity="error")
+                        return
+                else:  # Es un comentario directo a la publicación
+                    comentarios.append(new_comment)
+                    print(f"[DEBUG] Comentario directo agregado a la publicación {self.current_comment_post_id}")
+
                 ref.update({'comentarios': comentarios})
                 self.notify("Comentario agregado con éxito!", severity="information")
                 comment_input.value = ""
