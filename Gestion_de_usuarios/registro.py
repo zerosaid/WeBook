@@ -1,12 +1,19 @@
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal, Container
-from textual.widgets import Input, Button, Label, Static
+from textual.widgets import Input, Button, Label
 import re
 from conexion import *
+import firebase_admin
+from firebase_admin import credentials, firestore
+import os
 
 
 # Credenciales predefinidas
-
+CRED_PATH = "/home/camper/Escritorio/WeBook/WeBook/cred.json"  # Cambiar por la ruta real
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CRED_PATH
+cred = credentials.Certificate(CRED_PATH)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 class LoginApp(App):
     CSS = """
