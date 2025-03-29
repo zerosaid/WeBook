@@ -9,6 +9,7 @@ import os
 
 
 # Credenciales predefinidas
+
 CRED_PATH = "/home/camper/Escritorio/WeBook/WeBook/cred.json"  # Cambiar por la ruta real
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CRED_PATH
 cred = credentials.Certificate(CRED_PATH)
