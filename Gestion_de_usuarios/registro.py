@@ -10,7 +10,7 @@ import os
 
 # Credenciales predefinidas
 
-CRED_PATH = "/home/camper/Escritorio/WeBook/WeBook/cred.json"  # Cambiar por la ruta real
+CRED_PATH = "https://scrum-c1f2c-default-rtdb.firebaseio.com/"  # Cambiar por la ruta real
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CRED_PATH
 cred = credentials.Certificate(CRED_PATH)
 firebase_admin.initialize_app(cred)
